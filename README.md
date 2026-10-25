@@ -29,6 +29,7 @@ A web-based **3D rocket-car flight game** in a single HTML file. You drive up a 
 - **Lift Jet Points at the Roof**: It always pushes toward the roof. Fire it while upside down and it drives you into the ground.
 - **About Four Seconds of Gas**: The cold-gas tank is small. Spend too much on the way up and there's nothing left to brake with.
 - **Attitude Indicators**: Two circles at the top right show the car from the side and from behind. Both turn green when the wheels face the ground.
+- **G-Meter**: Next to altitude and vertical speed, a G-force reading shows what someone in the seat would feel: 1 G parked, close to 0 G in free fall, and around 6 G hitting the bottom of the ramp at speed. It turns orange at 5 G and red at 9 G.
 - **Landing Rules**: A touchdown counts only if the wheels are down, the sink rate is 5.5 m/s or less, and the car isn't spinning.
 
 ### 🌃 Night Test Site
@@ -84,6 +85,8 @@ A web-based **3D rocket-car flight game** in a single HTML file. You drive up a 
 | 500 | Each full rotation in the air |
 
 Grades: **S** at 2900 or more, **A** at 2300, **B** at 1700, **C** below that.
+
+The results screen also shows your **peak G-force** for the run.
 
 ### 🎯 Controls
 
@@ -143,6 +146,7 @@ Grades: **S** at 2900 or more, **A** at 2300, **B** at 1700, **C** below that.
 - **AI Without Cheating**: For roll and pitch, the AI computes the fastest rotation it can still stop in time and fires thrusters to match it. To land, it checks whether the remaining height is enough to brake at the current sink rate.
 - **Simulated Before Shipping**: Physics, landing checks and the AI don't depend on rendering, so they were run headlessly in Node across hundreds of AI flights per mode.
 - **Synthesized Audio**: Motor, road, fan, wind and thruster sounds are oscillators and filtered noise from the Web Audio API, controlled every frame by the simulation.
+- **G-Force From Velocity**: Every physics step, the meter takes the change in the car’s velocity, adds gravity back in and smooths the result over about 0.1 seconds. Parked reads 1 G, free fall reads 0 G.
 - **Invisible Car, Real Shadow**: In Driver view the car’s materials stop drawing to the screen, but the shadow pass still renders them, so the car vanishes from view while its shadow stays on the ground.
 - **Instanced Truss**: The steel tower's hundreds of beams are drawn as a single instanced mesh.
 - **Text in One Table**: All interface text lives in one Chinese and English dictionary. HTML elements mark what they need with `data-i18n`, so switching language is one function.
