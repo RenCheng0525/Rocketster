@@ -77,6 +77,9 @@ body{
 #attC{width:220px; height:112px; display:block}
 #attRow{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); padding:2px 6px 0}
 #attRow b{color:var(--text); font-size:14px}
+#attRow{flex-wrap:wrap; gap:2px 8px}
+#attRow b#gT.warn{color:var(--orange)}
+#attRow b#gT.hot{color:var(--bad)}
 
 #banner{
   position:fixed; left:50%; top:calc(env(safe-area-inset-top,0px) + 150px); transform:translateX(-50%);
@@ -186,7 +189,7 @@ button.go.ghost{background:transparent; color:var(--muted); border:1px solid var
   <div id="right">
     <div class="panel" id="att">
       <canvas id="attC" width="440" height="224"></canvas>
-      <div id="attRow"><span><span data-i18n="alt"></span> <b id="alt" class="num">0.0</b> m</span><span><span data-i18n="vert"></span> <b id="vyT" class="num">0.0</b> m/s</span></div>
+      <div id="attRow"><span><span data-i18n="alt"></span> <b id="alt" class="num">0.0</b> m</span><span><span data-i18n="vert"></span> <b id="vyT" class="num">0.0</b> m/s</span><span>G <b id="gT" class="num">1.0</b></span></div>
     </div>
     <div class="panel" id="logP">
       <div id="logHead"><span data-i18n="log"></span><span><button id="camBtn" type="button">🎥</button><button id="sndBtn" type="button">🔊</button><button id="aiBtn" type="button"></button></span></div>
@@ -597,7 +600,7 @@ const I18N = {
     tip: '冷氣體只夠噴大約四秒，省著用。降落時右上角兩個圓圈要變綠色，才代表輪子朝下。',
     start: '開始', watchAI: '🤖 看 AI 示範', again: '再飛一次', meNext: '換我玩', aiAgain: '再看一次 AI', menu: '回選單',
     landedT: '安全降落！', crashT: '墜毀 💥', rVy: '著陸下降速度', rPad: '降落區', padHit: '命中 +600', padMiss: '沒踩到', rGas: '剩餘冷氣體',
-    rAir: '滯空時間', rSpider: '倒掛停車', yes300: '有 +300', no: '沒有', rRot: '空中翻轉', rotVal: n => n + ' 圈' + (n ? ' +' + n * 500 : ''),
+    rAir: '滯空時間', rSpider: '倒掛停車', yes300: '有 +300', no: '沒有', rRot: '空中翻轉', rG: '最大 G 力', rotVal: n => n + ' 圈' + (n ? ' +' + n * 500 : ''),
     tipRamp: '小提示：上坡前先開風扇讓它預熱；飛出後先翻正，再用升力噴射把下降速度壓到 5.5 m/s 以下；旋轉太快時反方向補噴一下。',
     tipHop: '小提示：先衝高一點再開始翻，翻完要留高度和氣體減速；下降速度要低於 5.5 m/s。'
   },
@@ -631,7 +634,7 @@ const I18N = {
     tip: 'There’s only about four seconds of cold gas, so use it wisely. Both circles at the top right turn green when your wheels face the ground.',
     start: 'Start', watchAI: '🤖 Watch the AI demo', again: 'Fly again', meNext: 'My turn', aiAgain: 'Watch the AI again', menu: 'Back to menu',
     landedT: 'Safe landing!', crashT: 'Crashed 💥', rVy: 'Touchdown sink rate', rPad: 'Landing pad', padHit: 'Hit +600', padMiss: 'Missed', rGas: 'Gas left',
-    rAir: 'Airtime', rSpider: 'Upside-down stop', yes300: 'Yes +300', no: 'No', rRot: 'Rotations', rotVal: n => n + (n === 1 ? ' turn' : ' turns') + (n ? ' +' + n * 500 : ''),
+    rAir: 'Airtime', rSpider: 'Upside-down stop', yes300: 'Yes +300', no: 'No', rRot: 'Rotations', rG: 'Peak G-force', rotVal: n => n + (n === 1 ? ' turn' : ' turns') + (n ? ' +' + n * 500 : ''),
     tipRamp: 'Tip: switch the fan on before the ramp so it can spin up. After launch, roll upright first, then use the lift jet to keep your sink rate under 5.5 m/s. If you’re spinning too fast, counter-thrust.',
     tipHop: 'Tip: climb high before you start the trick, and save height and gas to brake afterwards. Keep your sink rate under 5.5 m/s.'
   }
@@ -686,7 +689,7 @@ function reset(){
     mode: MODE, phase: 'intro', x: MODE === 'hop' ? PAD_X : START_X, y: CAR_H, v: 0, vx: 0, vy: 0, phi: 0, psi: 0, wp: 0, wr: 0, s: 0,
     fanOn: false, fan: 0, batt: 100, gas: 100, wheelA: 0, flash: '', flashT: 0,
     hang: 0, spider: false, air: 0, maxAlt: 0, fire: {}, done: false, doneT: 0, shake: 0, result: null, t: 0,
-    usedRamp: false, hopped: false, rotR: 0, rotP: 0
+    usedRamp: false, hopped: false, rotR: 0, rotP: 0, g: 1, gMax: 1, gPrev: null, gPh: ''
   };
   fanBtn.classList.remove('lit');
 }
@@ -732,6 +735,15 @@ function step(dt){
   else if (S.phase === 'air') stepAir(dt, boosting);
   else if (S.phase === 'landed') stepLanded(dt);
   else if (S.phase === 'crashed') stepCrashed(dt);
+
+  // G 力：用速度變化估算車上感受到的加速度（靜止＝1G，自由落體＝0G）
+  const gv = S.phase === 'track' ? [S.v * Math.cos(S.phi), S.v * Math.sin(S.phi)] : S.phase === 'air' ? [S.vx, S.vy] : S.phase === 'ground' ? [S.v, 0] : S.phase === 'landed' ? [S.vx, 0] : null;
+  if (gv && S.gPrev && S.phase === S.gPh){
+    const gx = (gv[0] - S.gPrev[0]) / dt, gy = (gv[1] - S.gPrev[1]) / dt;
+    S.g += (Math.hypot(gx, gy + G) / G - S.g) * Math.min(1, dt / 0.08);
+    S.gMax = Math.max(S.gMax, S.g);
+  }
+  S.gPrev = gv; S.gPh = S.phase;
 
   if (S.done && S.doneT > 0){ S.doneT -= dt; if (S.doneT <= 0) showResult(); }
 }
@@ -1188,7 +1200,7 @@ function aiRamp(p, want){
 
 /* ===================== HUD ===================== */
 const $ = id => document.getElementById(id);
-const el = { spd: $('spd'), battBar: $('battBar'), battTxt: $('battTxt'), gasBar: $('gasBar'), gasTxt: $('gasTxt'), fanBar: $('fanBar'), fanTxt: $('fanTxt'), alt: $('alt'), vy: $('vyT'), banner: $('banner') };
+const el = { spd: $('spd'), battBar: $('battBar'), battTxt: $('battTxt'), gasBar: $('gasBar'), gasTxt: $('gasTxt'), fanBar: $('fanBar'), fanTxt: $('fanTxt'), alt: $('alt'), vy: $('vyT'), banner: $('banner'), g: $('gT') };
 const attC = $('attC'), ac = attC.getContext('2d');
 const css = getComputedStyle(document.documentElement);
 const cssv = n => css.getPropertyValue(n).trim();
@@ -1273,6 +1285,9 @@ function updateHUD(){
   el.fanTxt.textContent = !S.fanOn ? (S.fan > 0.05 ? T('spinDown') : T('off')) : (S.fan > 0.95 ? T('full') : Math.round(S.fan * 100) + '%');
   el.alt.textContent = Math.max(0, S.y - CAR_H).toFixed(1);
   el.vy.textContent = (S.phase === 'air' ? S.vy : 0).toFixed(1);
+  el.g.textContent = S.g.toFixed(1);
+  el.g.classList.toggle('warn', S.g >= 5 && S.g < 9);
+  el.g.classList.toggle('hot', S.g >= 9);
   const m = contextMsg();
   if (el.banner.textContent !== m) el.banner.textContent = m;
   capEls.forEach(c => { const k = c.dataset.k; c.classList.toggle('held', k === 'fan' ? S.fanOn : !!input[k]); });
@@ -1457,6 +1472,7 @@ function showResult(){
       '<span>' + T('rVy') + '</span><b class="num">' + Math.abs(r.vy).toFixed(1) + ' m/s</b>' +
       '<span>' + T('rPad') + '</span><b>' + T(r.onPad ? 'padHit' : 'padMiss') + '</b>' +
       '<span>' + T('rRot') + '</span><b>' + T('rotVal', r.rots) + '</b>' +
+      '<span>' + T('rG') + '</span><b class="num">' + S.gMax.toFixed(1) + ' G</b>' +
       '<span>' + T('rGas') + '</span><b class="num">' + Math.round(S.gas) + '%</b>' +
       '<span>' + T('rAir') + '</span><b class="num">' + S.air.toFixed(1) + ' s</b>' +
       (S.mode === 'ramp' ? '<span>' + T('rSpider') + '</span><b>' + T(S.spider ? 'yes300' : 'no') + '</b>' : '') +
