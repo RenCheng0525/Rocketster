@@ -128,8 +128,8 @@ body.touch #keys{display:none}
 #logHead{display:flex; justify-content:space-between; align-items:center; font-size:12.5px; color:var(--muted); margin-bottom:6px}
 #aiBtn{font:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--orange); color:var(--orange); background:transparent; border-radius:8px; padding:4px 10px; cursor:pointer}
 #aiBtn.on{background:var(--orange); color:#fff}
-#sndBtn, #langBtn{font:inherit; font-size:13px; border:1px solid var(--line); background:transparent; color:var(--text); border-radius:8px; padding:3px 7px; cursor:pointer; margin-right:4px}
-#sndBtn:focus-visible, #langBtn:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+#sndBtn, #langBtn, #camBtn{font:inherit; font-size:13px; border:1px solid var(--line); background:transparent; color:var(--text); border-radius:8px; padding:3px 7px; cursor:pointer; margin-right:4px}
+#sndBtn:focus-visible, #langBtn:focus-visible, #camBtn:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
 #aiBtn:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
 #caps{display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px}
 #caps kbd, #logList kbd{font-family:"Chakra Petch",system-ui,sans-serif; font-size:11.5px; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:1px 5px; min-width:22px; text-align:center; color:var(--text)}
@@ -189,7 +189,7 @@ button.go.ghost{background:transparent; color:var(--muted); border:1px solid var
       <div id="attRow"><span><span data-i18n="alt"></span> <b id="alt" class="num">0.0</b> m</span><span><span data-i18n="vert"></span> <b id="vyT" class="num">0.0</b> m/s</span></div>
     </div>
     <div class="panel" id="logP">
-      <div id="logHead"><span data-i18n="log"></span><span><button id="sndBtn" type="button">🔊</button><button id="aiBtn" type="button"></button></span></div>
+      <div id="logHead"><span data-i18n="log"></span><span><button id="camBtn" type="button">🎥</button><button id="sndBtn" type="button">🔊</button><button id="aiBtn" type="button"></button></span></div>
       <div id="caps"><kbd data-k="up">W</kbd><kbd data-k="left">A</kbd><kbd data-k="down">S</kbd><kbd data-k="right">D</kbd><kbd data-k="lift" data-i18n="space"></kbd><kbd data-k="boost">Shift</kbd><kbd data-k="fan">F</kbd></div>
       <ul id="logList"></ul>
     </div>
@@ -492,8 +492,7 @@ const CAR = (function(){
   add(new THREE.BoxGeometry(4.4, 0.42, 1.9), paint, 0, -0.12, 0);
   add(new THREE.BoxGeometry(1.55, 0.2, 1.84), paint, 1.3, 0.12, 0, -0.17);
   add(new THREE.BoxGeometry(1.2, 0.24, 1.84), paint, -1.55, 0.15, 0, 0.05);
-  add(new THREE.BoxGeometry(1.75, 0.4, 1.52), glass, -0.15, 0.32, 0);
-  add(new THREE.BoxGeometry(1.15, 0.06, 1.44), paint, -0.3, 0.54, 0);
+  const cabin = [add(new THREE.BoxGeometry(1.75, 0.4, 1.52), glass, -0.15, 0.32, 0), add(new THREE.BoxGeometry(1.15, 0.06, 1.44), paint, -0.3, 0.54, 0)];
   for (const z of [0.97, -0.97]) add(new THREE.BoxGeometry(3.1, 0.1, 0.03), accent, 0, -0.22, z);
   add(new THREE.BoxGeometry(0.36, 0.06, 1.9), accent, -2.05, 0.52, 0);
   for (const z of [0.6, -0.6]) add(new THREE.BoxGeometry(0.08, 0.26, 0.08), dark, -2.0, 0.37, z);
@@ -523,7 +522,7 @@ const CAR = (function(){
     f.position.set(x, -0.35, 0); car.add(f); fans.push(f);
   }
   scene.add(car);
-  return { car, wheels, glow, glowMat, fans };
+  return { car, wheels, glow, glowMat, fans, cabin };
 })();
 
 /* ---- 噴氣粒子 ---- */
@@ -549,7 +548,10 @@ function updatePuffs(dt){
     if (p.m.position.y < 0.1){ p.m.position.y = 0.1; p.vel.y = Math.abs(p.vel.y) * 0.3; }
     const k = p.life / p.max;
     p.m.scale.setScalar(p.size * (1 + 2.5 * (1 - k)));
-    p.m.material.opacity = 0.75 * k;
+    let o = 0.75 * k;
+    // 駕駛員視角：飄到鏡頭旁邊的氣霧淡掉，避免整個畫面白茫茫
+    if (CAMMODE === 'driver'){ const d = p.m.position.distanceTo(camera.position); if (d < 3.5) o *= Math.max(0, (d - 0.8) / 2.7); }
+    p.m.material.opacity = o;
   }
 }
 const _v = new THREE.Vector3(), _d = new THREE.Vector3(), _cv = new THREE.Vector3();
@@ -569,8 +571,8 @@ const I18N = {
     title: 'Rocketster 火箭跑車', titleHtml: 'Rocket<span class="c">ster</span><small>火箭跑車</small>',
     batt: '電池', gas: '冷氣體', fan: '吸力風扇', off: '關', full: '全開', spinDown: '減速', alt: '高度', vert: '垂直', log: '按鍵紀錄',
     space: '空白', spaceKey: '空白鍵', aiIdle: '🤖 AI 示範', aiOn: '🤖 AI 駕駛中', you: '你', sideView: '側視', rearView: '後視',
-    tFan: '風扇', tBoost: '推進', tLift: '升力噴射', soundLabel: '音效開關', langLabel: 'Switch to English',
-    keysBar: '<kbd>W</kbd><kbd>S</kbd> 加油／煞車　空中：<kbd>W</kbd><kbd>S</kbd> 俯仰 <kbd>A</kbd><kbd>D</kbd> 翻滾 <kbd>空白</kbd> 升力噴射（在地上按＝原地起飛） <kbd>Shift</kbd> 主推進　<kbd>F</kbd> 風扇 <kbd>R</kbd> 重來 <kbd>I</kbd> AI <kbd>L</kbd> English <kbd>M</kbd> 靜音　拖曳轉視角・滾輪縮放・<kbd>C</kbd> 重設視角',
+    tFan: '風扇', tBoost: '推進', tLift: '升力噴射', soundLabel: '音效開關', camSpec: '🎥 觀眾視角', camDriver: '🧑‍✈️ 駕駛員視角', camLabel: '切換視角（觀眾／駕駛員）', langLabel: 'Switch to English',
+    keysBar: '<kbd>W</kbd><kbd>S</kbd> 加油／煞車　空中：<kbd>W</kbd><kbd>S</kbd> 俯仰 <kbd>A</kbd><kbd>D</kbd> 翻滾 <kbd>空白</kbd> 升力噴射（在地上按＝原地起飛） <kbd>Shift</kbd> 主推進　<kbd>F</kbd> 風扇 <kbd>R</kbd> 重來 <kbd>I</kbd> AI <kbd>L</kbd> English <kbd>M</kbd> 靜音　拖曳轉視角・滾輪縮放・<kbd>C</kbd> 重設視角 <kbd>V</kbd> 觀眾／駕駛員視角',
     throttle: '加油', brake: '煞車', noseUp: '機頭上仰', noseDown: '機頭下壓', rollL: '左翻滾', rollR: '右翻滾', liftD: '升力噴射', boostD: '主推進', fanOnD: '風扇開', fanOffD: '風扇關',
     fanStarting: '吸力風扇啟動中…', fanOffMsg: '風扇關閉', battDead: '電池沒電，風扇停了！', fell: '掉下來了！吸力或速度不夠',
     spider: '🕷️ 倒掛停車成功！+300', launched: '飛出去了！把輪子轉向地面！', liftoff: '🚀 原地起飛！', hopLand: '落地，繼續衝！',
@@ -590,8 +592,8 @@ const I18N = {
     modeRamp: '倒C跳台', modeRampS: '衝上倒C坡道、倒掛飛出、翻正降落', modeHop: '原地起飛翻滾', modeHopS: '原地噴射升空、空中翻轉、平穩降落',
     descRamp: '全手動：自己加電、自己開風扇吸住跑道、自己控制每一顆冷氣體噴嘴。開上倒C坡道、倒掛衝出唇口，在空中翻正，輪子朝下安全降落。',
     descHop: '車子停在降落區上。按住升力噴射原地升空，在空中用噴嘴翻一圈（也可以兩圈或後空翻），再輪子朝下輕輕降落。每完整翻一圈 +500 分。',
-    ctlDesk: '<dt><kbd>W</kbd> <kbd>S</kbd></dt><dd>地面：加油／煞車。空中：機頭上仰／下壓</dd><dt><kbd>A</kbd> <kbd>D</kbd></dt><dd>空中翻滾（噴嘴）</dd><dt><kbd>空白鍵</kbd></dt><dd>升力噴射：往車頂方向推（倒著按會往下推！在地上按就是原地起飛）</dd><dt><kbd>Shift</kbd></dt><dd>車尾主推進，地面空中都能用</dd><dt><kbd>F</kbd></dt><dd>開／關吸力風扇（要預熱，耗電）</dd><dt><kbd>R</kbd> <kbd>M</kbd> <kbd>L</kbd></dt><dd>重來、音效開關、English</dd><dt>滑鼠拖曳</dt><dd>轉視角（滾輪縮放、雙擊或 <kbd>C</kbd> 重設）</dd>',
-    ctlTouch: '<dt>▲ ▼</dt><dd>地面：加油／煞車。空中：機頭上仰／下壓</dd><dt>⟲ ⟳</dt><dd>空中翻滾（噴嘴）</dd><dt>升力噴射</dt><dd>往車頂方向推（倒著按會往下推！在地上按就是原地起飛）</dd><dt>推進</dt><dd>車尾主噴嘴，地面空中都能用</dd><dt>風扇</dt><dd>開／關吸力風扇（要預熱，耗電）</dd><dt>拖曳畫面</dt><dd>轉視角（雙指縮放、點兩下重設）</dd>',
+    ctlDesk: '<dt><kbd>W</kbd> <kbd>S</kbd></dt><dd>地面：加油／煞車。空中：機頭上仰／下壓</dd><dt><kbd>A</kbd> <kbd>D</kbd></dt><dd>空中翻滾（噴嘴）</dd><dt><kbd>空白鍵</kbd></dt><dd>升力噴射：往車頂方向推（倒著按會往下推！在地上按就是原地起飛）</dd><dt><kbd>Shift</kbd></dt><dd>車尾主推進，地面空中都能用</dd><dt><kbd>F</kbd></dt><dd>開／關吸力風扇（要預熱，耗電）</dd><dt><kbd>R</kbd> <kbd>M</kbd> <kbd>L</kbd></dt><dd>重來、音效開關、English</dd><dt>滑鼠拖曳</dt><dd>轉視角（滾輪縮放、雙擊或 <kbd>C</kbd> 重設）</dd><dt><kbd>V</kbd></dt><dd>切換觀眾視角／駕駛員視角</dd>',
+    ctlTouch: '<dt>▲ ▼</dt><dd>地面：加油／煞車。空中：機頭上仰／下壓</dd><dt>⟲ ⟳</dt><dd>空中翻滾（噴嘴）</dd><dt>升力噴射</dt><dd>往車頂方向推（倒著按會往下推！在地上按就是原地起飛）</dd><dt>推進</dt><dd>車尾主噴嘴，地面空中都能用</dd><dt>風扇</dt><dd>開／關吸力風扇（要預熱，耗電）</dd><dt>拖曳畫面</dt><dd>轉視角（雙指縮放、點兩下重設）</dd><dt>🎥 按鈕</dt><dd>切換觀眾視角／駕駛員視角</dd>',
     tip: '冷氣體只夠噴大約四秒，省著用。降落時右上角兩個圓圈要變綠色，才代表輪子朝下。',
     start: '開始', watchAI: '🤖 看 AI 示範', again: '再飛一次', meNext: '換我玩', aiAgain: '再看一次 AI', menu: '回選單',
     landedT: '安全降落！', crashT: '墜毀 💥', rVy: '著陸下降速度', rPad: '降落區', padHit: '命中 +600', padMiss: '沒踩到', rGas: '剩餘冷氣體',
@@ -603,8 +605,8 @@ const I18N = {
     title: 'Rocketster', titleHtml: 'Rocket<span class="c">ster</span><small>Hand-flown rocket car</small>',
     batt: 'Battery', gas: 'Cold gas', fan: 'Fan', off: 'Off', full: 'Max', spinDown: 'Slowing', alt: 'Alt', vert: 'V/S', log: 'Key log',
     space: 'Space', spaceKey: 'Space', aiIdle: '🤖 AI demo', aiOn: '🤖 AI driving', you: 'You', sideView: 'Side', rearView: 'Rear',
-    tFan: 'Fan', tBoost: 'Thrust', tLift: 'Lift jet', soundLabel: 'Sound on/off', langLabel: '切換成中文',
-    keysBar: '<kbd>W</kbd><kbd>S</kbd> throttle/brake　In the air: <kbd>W</kbd><kbd>S</kbd> pitch <kbd>A</kbd><kbd>D</kbd> roll <kbd>Space</kbd> lift jet (on the ground = take off) <kbd>Shift</kbd> thrust　<kbd>F</kbd> fan <kbd>R</kbd> retry <kbd>I</kbd> AI <kbd>L</kbd> 中文 <kbd>M</kbd> mute　Drag to orbit, scroll to zoom, <kbd>C</kbd> reset view',
+    tFan: 'Fan', tBoost: 'Thrust', tLift: 'Lift jet', soundLabel: 'Sound on/off', camSpec: '🎥 Spectator view', camDriver: '🧑‍✈️ Driver view', camLabel: 'Switch view (spectator / driver)', langLabel: '切換成中文',
+    keysBar: '<kbd>W</kbd><kbd>S</kbd> throttle/brake　In the air: <kbd>W</kbd><kbd>S</kbd> pitch <kbd>A</kbd><kbd>D</kbd> roll <kbd>Space</kbd> lift jet (on the ground = take off) <kbd>Shift</kbd> thrust　<kbd>F</kbd> fan <kbd>R</kbd> retry <kbd>I</kbd> AI <kbd>L</kbd> 中文 <kbd>M</kbd> mute　Drag to orbit, scroll to zoom, <kbd>C</kbd> reset view <kbd>V</kbd> spectator/driver view',
     throttle: 'Throttle', brake: 'Brake', noseUp: 'Nose up', noseDown: 'Nose down', rollL: 'Roll left', rollR: 'Roll right', liftD: 'Lift jet', boostD: 'Main thrust', fanOnD: 'Fan on', fanOffD: 'Fan off',
     fanStarting: 'Suction fan spinning up…', fanOffMsg: 'Fan off', battDead: 'Battery empty, the fan stopped!', fell: 'Fell off! Not enough suction or speed',
     spider: '🕷️ Upside-down stop! +300', launched: 'Airborne! Turn the wheels toward the ground!', liftoff: '🚀 Liftoff!', hopLand: 'Touched down. Keep going!',
@@ -624,8 +626,8 @@ const I18N = {
     modeRamp: 'C-Ramp', modeRampS: 'Climb the C-ramp, fly off upside down, land wheels-down', modeHop: 'Hover Flip', modeHopS: 'Jet straight up, flip in the air, land softly',
     descRamp: 'Fully manual: you work the throttle, switch on the suction fan to stick to the track, and fire every cold-gas thruster yourself. Climb the C-ramp, shoot off the lip upside down, roll upright in the air and land wheels-down.',
     descHop: 'The car starts on the landing pad. Hold the lift jet to rise straight up, use the thrusters to roll a full turn (or two, or a backflip), then set it down wheels-first. Each full rotation is worth +500.',
-    ctlDesk: '<dt><kbd>W</kbd> <kbd>S</kbd></dt><dd>On the ground: throttle/brake. In the air: nose up/down</dd><dt><kbd>A</kbd> <kbd>D</kbd></dt><dd>Roll in the air (thrusters)</dd><dt><kbd>Space</kbd></dt><dd>Lift jet: pushes toward the roof (upside down it pushes you down!). On the ground it takes off</dd><dt><kbd>Shift</kbd></dt><dd>Rear main thruster, works on the ground and in the air</dd><dt><kbd>F</kbd></dt><dd>Suction fan on/off (needs to spin up, uses battery)</dd><dt><kbd>R</kbd> <kbd>M</kbd> <kbd>L</kbd></dt><dd>Retry, sound, 中文</dd><dt>Mouse drag</dt><dd>Orbit the camera (scroll to zoom, double-click or <kbd>C</kbd> to reset)</dd>',
-    ctlTouch: '<dt>▲ ▼</dt><dd>On the ground: throttle/brake. In the air: nose up/down</dd><dt>⟲ ⟳</dt><dd>Roll in the air (thrusters)</dd><dt>Lift jet</dt><dd>Pushes toward the roof (upside down it pushes you down!). On the ground it takes off</dd><dt>Thrust</dt><dd>Rear main thruster, works on the ground and in the air</dd><dt>Fan</dt><dd>Suction fan on/off (needs to spin up, uses battery)</dd><dt>Drag the view</dt><dd>Orbit the camera (pinch to zoom, double-tap to reset)</dd>',
+    ctlDesk: '<dt><kbd>W</kbd> <kbd>S</kbd></dt><dd>On the ground: throttle/brake. In the air: nose up/down</dd><dt><kbd>A</kbd> <kbd>D</kbd></dt><dd>Roll in the air (thrusters)</dd><dt><kbd>Space</kbd></dt><dd>Lift jet: pushes toward the roof (upside down it pushes you down!). On the ground it takes off</dd><dt><kbd>Shift</kbd></dt><dd>Rear main thruster, works on the ground and in the air</dd><dt><kbd>F</kbd></dt><dd>Suction fan on/off (needs to spin up, uses battery)</dd><dt><kbd>R</kbd> <kbd>M</kbd> <kbd>L</kbd></dt><dd>Retry, sound, 中文</dd><dt>Mouse drag</dt><dd>Orbit the camera (scroll to zoom, double-click or <kbd>C</kbd> to reset)</dd><dt><kbd>V</kbd></dt><dd>Switch between spectator and driver view</dd>',
+    ctlTouch: '<dt>▲ ▼</dt><dd>On the ground: throttle/brake. In the air: nose up/down</dd><dt>⟲ ⟳</dt><dd>Roll in the air (thrusters)</dd><dt>Lift jet</dt><dd>Pushes toward the roof (upside down it pushes you down!). On the ground it takes off</dd><dt>Thrust</dt><dd>Rear main thruster, works on the ground and in the air</dd><dt>Fan</dt><dd>Suction fan on/off (needs to spin up, uses battery)</dd><dt>Drag the view</dt><dd>Orbit the camera (pinch to zoom, double-tap to reset)</dd><dt>🎥 button</dt><dd>Switch between spectator and driver view</dd>',
     tip: 'There’s only about four seconds of cold gas, so use it wisely. Both circles at the top right turn green when your wheels face the ground.',
     start: 'Start', watchAI: '🤖 Watch the AI demo', again: 'Fly again', meNext: 'My turn', aiAgain: 'Watch the AI again', menu: 'Back to menu',
     landedT: 'Safe landing!', crashT: 'Crashed 💥', rVy: 'Touchdown sink rate', rPad: 'Landing pad', padHit: 'Hit +600', padMiss: 'Missed', rGas: 'Gas left',
@@ -657,6 +659,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyC') resetView();
   if (e.code === 'KeyM') toggleSound();
   if (e.code === 'KeyL') toggleLang();
+  if (e.code === 'KeyV') toggleCam();
   if (e.code === 'Enter' && document.activeElement.tagName !== 'BUTTON' && (S.phase === 'intro' || S.done)) startHuman();
 });
 window.addEventListener('keyup', e => { const k = keyMap[e.code]; if (k && !AI.on && input[k]){ input[k] = false; keyEvent(k, false, 'ME'); } });
@@ -1307,7 +1310,61 @@ function resetView(){ view.yaw = 0; view.pitch = 0; view.zoom = 1; }
 })();
 const camPos = new THREE.Vector3(START_X - 6, 6, 24), camLook = new THREE.Vector3(START_X, 1, 0);
 const _look = new THREE.Vector3(), _want = new THREE.Vector3(), _mid = new THREE.Vector3(X0 - 4, TOP * 0.5, 0);
+// 視角模式：spec＝觀眾（原本的追蹤鏡頭）、driver＝駕駛員（坐在車裡）
+let CAMMODE = 'spec';
+try { if (localStorage.getItem('flipRampCam') === 'driver') CAMMODE = 'driver'; } catch (err){}
+const camBtn = document.getElementById('camBtn');
+function updateCamBtn(){
+  camBtn.textContent = CAMMODE === 'driver' ? '🧑‍✈️' : '🎥';
+  camBtn.setAttribute('aria-label', T('camLabel')); camBtn.title = T('camLabel');
+}
+function toggleCam(){
+  CAMMODE = CAMMODE === 'driver' ? 'spec' : 'driver';
+  try { localStorage.setItem('flipRampCam', CAMMODE); } catch (err){}
+  resetView(); updateCamBtn();
+  if (CAMMODE === 'spec'){ camera.up.set(0, 1, 0); camPos.copy(camera.position); }
+  if (S && S.phase !== 'intro') flash(T(CAMMODE === 'driver' ? 'camDriver' : 'camSpec'), 1.2, false);
+}
+camBtn.addEventListener('click', () => { ensureAudio(); toggleCam(); camBtn.blur(); });
+const _eye = new THREE.Vector3(), _dir = new THREE.Vector3(), _upW = new THREE.Vector3();
+// 駕駛員視角：整台車不畫在畫面上，前方完全不擋；但影子照樣投在地上，方便判斷高度
+let carHidden = false;
+const carMats = [];
+CAR.car.traverse(o => { if (o.material && !carMats.includes(o.material)){ o.material.userData.dw = o.material.depthWrite; carMats.push(o.material); } });
+function setCarHidden(h){
+  if (h === carHidden) return;
+  carHidden = h;
+  for (const m of carMats){ m.colorWrite = !h; m.depthWrite = h ? false : m.userData.dw; }
+}
+function setFov(f){ if (Math.abs(camera.fov - f) > 0.05){ camera.fov = f; camera.updateProjectionMatrix(); } }
+// 駕駛員視角：眼睛在駕駛座，跟著車子一起俯仰、翻滾；拖曳可以轉頭看周圍
+function driverCamera(dt){
+  const c = CAR.car;
+  setCarHidden(true);
+  _eye.set(-0.1, 0.5, 0.3); c.localToWorld(_eye);
+  const yaw = view.yaw, p = -view.pitch;
+  _dir.set(Math.cos(p) * Math.cos(yaw), Math.sin(p), -Math.cos(p) * Math.sin(yaw)).transformDirection(c.matrixWorld);
+  _upW.set(0, 1, 0).transformDirection(c.matrixWorld);
+  camera.position.copy(_eye);
+  if (S.shake > 0){
+    S.shake -= dt;
+    camera.position.x += (Math.random() - 0.5) * S.shake * 0.4;
+    camera.position.y += (Math.random() - 0.5) * S.shake * 0.4;
+  }
+  camera.up.copy(_upW);
+  camera.lookAt(camera.position.x + _dir.x, camera.position.y + _dir.y, camera.position.z + _dir.z);
+  setFov((window.innerWidth < window.innerHeight ? 92 : 72) * Math.max(0.5, Math.min(1.4, view.zoom)));
+}
 function updateCamera(dt){
+  if (CAMMODE === 'driver'){
+    driverCamera(dt);
+    sun.position.set(S.x + 10, 80, 22); sun.target.position.set(S.x, 0, 0);
+    carLight.position.set(S.x + 1, S.y + 3.5, 5);
+    return;
+  }
+  camera.up.set(0, 1, 0);
+  setCarHidden(false);
+  setFov(window.innerWidth < window.innerHeight ? 62 : 45);
   const portrait = window.innerWidth < window.innerHeight;
   const near = Math.max(0, Math.min(1, 1 - (Math.abs(S.x - X0) - 30) / 45));
   const oy = 4 + 3 * near, oz = (portrait ? 34 : 22) + 22 * near, ox = -3;
@@ -1351,7 +1408,7 @@ function renderCar(dt){
     if (F.boost){ emit(-2.35, -0.05, 0.45, -1, 0, 0, 2, 16); emit(-2.35, -0.05, -0.45, -1, 0, 0, 2, 16); }
     if (F.lift){ for (const x of [1.6, -1.6]) for (const z of [0.8, -0.8]) emit(x, -0.4, z, 0, -1, 0, 1, 14); }
     if (F.pitch){ const s = F.pitch; emit(s > 0 ? 2.1 : -2.1, -0.35, 0, 0, -1, 0, 1, 10); emit(s > 0 ? -2.1 : 2.1, 0.45, 0, 0, 1, 0, 1, 10); }
-    if (F.roll){ const s = F.roll; emit(0, -0.35, s > 0 ? 0.95 : -0.95, 0, -1, 0, 1, 10); emit(0, 0.5, s > 0 ? -0.95 : 0.95, 0, 1, 0, 1, 10); }
+    if (F.roll){ const s = F.roll; emit(0, -0.35, s > 0 ? 0.95 : -0.95, 0, -1, 0, 1, 10); if (CAMMODE !== 'driver') emit(0, 0.5, s > 0 ? -0.95 : 0.95, 0, 1, 0, 1, 10); }
   }
 }
 
@@ -1419,6 +1476,7 @@ function applyLang(){
   $('keys').innerHTML = T('keysBar');
   sndBtn.setAttribute('aria-label', T('soundLabel'));
   updateAiBtn();
+  updateCamBtn();
   if (S.phase === 'intro') showIntro();
   else if (S.done && !overlay.hidden) showResult();
 }
