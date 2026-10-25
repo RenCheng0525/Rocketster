@@ -44,8 +44,12 @@ A web-based **3D rocket-car flight game** in a single HTML file. You drive up a 
 
 ### 🎥 Camera
 
-- **Drag to Orbit**: Drag with the mouse or a finger to swing the camera around the car.
-- **Zoom**: Scroll the wheel, or pinch with two fingers.
+- **Two Views**: Switch between **Spectator** view and **Driver** view with the 🎥 button in the key log panel, or `V`. Your choice is remembered.
+- **Spectator View**: A chase camera that follows the car from the side.
+- **Driver View**: You sit in the driver’s seat and the camera pitches and rolls with the car. Climbing the wall you stare at the sky, hanging on the lip the world is upside down, and in a barrel roll the horizon spins around you.
+- **Nothing in the Way**: In Driver view the car body isn’t drawn, so the view ahead is completely clear. Its shadow still falls on the ground, so you can judge your height. Thruster vapor near your head fades out instead of whiting out the screen.
+- **Drag to Look**: In Spectator view, drag with the mouse or a finger to swing the camera around the car. In Driver view, dragging turns your head to look around.
+- **Zoom**: Scroll the wheel, or pinch with two fingers. In Driver view this widens or narrows the field of view.
 - **Reset**: Double-click, double-tap or press `C` to return to the default view.
 - **Looks Ahead**: The car sits left of center, so the road and ramp ahead stay in view on the right.
 - **Frames the Ramp**: The camera pulls back automatically near the ramp so the whole structure fits on screen.
@@ -97,14 +101,15 @@ Grades: **S** at 2900 or more, **A** at 2300, **B** at 1700, **C** below that.
 | R | Restart |
 | M | Sound on / off |
 | L | Switch language |
+| V | Switch spectator / driver view |
 | C | Reset the camera |
 
 **Mouse**
 
 | Input | Action |
 |-----|--------|
-| Drag | Orbit the camera |
-| Scroll | Zoom |
+| Drag | Orbit the camera (Driver view: look around) |
+| Scroll | Zoom (Driver view: field of view) |
 | Double-click | Reset the camera |
 
 **Touch** (the on-screen buttons appear automatically on touch screens)
@@ -116,8 +121,9 @@ Grades: **S** at 2900 or more, **A** at 2300, **B** at 1700, **C** below that.
 | Lift jet | Lift jet, or take off from the ground |
 | Thrust | Main rear thrust |
 | Fan | Suction fan on / off |
-| Drag the view | Orbit the camera |
-| Pinch | Zoom |
+| 🎥 button | Switch spectator / driver view |
+| Drag the view | Orbit the camera (Driver view: look around) |
+| Pinch | Zoom (Driver view: field of view) |
 | Double-tap | Reset the camera |
 
 ### ✨ Small Touches
@@ -126,7 +132,7 @@ Grades: **S** at 2900 or more, **A** at 2300, **B** at 1700, **C** below that.
 - **Context Hints**: A banner tells you what to do next, such as switching on the fan before the ramp or braking before the ground.
 - **Back to Menu**: The results screen offers another try, the AI demo, or a return to the menu to switch modes.
 - **Phone Friendly**: Respects notches and home bars, and widens the camera view on portrait screens.
-- **Saved Settings**: Language and sound choices are remembered in your browser.
+- **Saved Settings**: Language, sound and camera view are remembered in your browser.
 
 ## 🛠 Technical Highlights
 
@@ -137,6 +143,7 @@ Grades: **S** at 2900 or more, **A** at 2300, **B** at 1700, **C** below that.
 - **AI Without Cheating**: For roll and pitch, the AI computes the fastest rotation it can still stop in time and fires thrusters to match it. To land, it checks whether the remaining height is enough to brake at the current sink rate.
 - **Simulated Before Shipping**: Physics, landing checks and the AI don't depend on rendering, so they were run headlessly in Node across hundreds of AI flights per mode.
 - **Synthesized Audio**: Motor, road, fan, wind and thruster sounds are oscillators and filtered noise from the Web Audio API, controlled every frame by the simulation.
+- **Invisible Car, Real Shadow**: In Driver view the car’s materials stop drawing to the screen, but the shadow pass still renders them, so the car vanishes from view while its shadow stays on the ground.
 - **Instanced Truss**: The steel tower's hundreds of beams are drawn as a single instanced mesh.
 - **Text in One Table**: All interface text lives in one Chinese and English dictionary. HTML elements mark what they need with `data-i18n`, so switching language is one function.
 - **Single HTML File**: No build step. three.js r128 and its bloom post-processing load from public CDNs (the game falls back to plain rendering if bloom fails to load), and the Chakra Petch font comes from Google Fonts.
